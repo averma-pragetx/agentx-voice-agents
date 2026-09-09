@@ -35,6 +35,11 @@ const FormField = ({ id, label, error, children }) => (
     </div>
 )
 
+const formatPhone = (raw) => {
+    const cleaned = raw.replace(/[\s-]/g, '')
+    return cleaned.startsWith('+') ? cleaned : `+${cleaned}`
+}
+
 const LiveDemoCallSection = () => {
     const [status, setStatus] = useState('idle') // idle | success
     const [callPhase, setCallPhase] = useState('idle') // idle | counting | dialing
@@ -44,13 +49,65 @@ const LiveDemoCallSection = () => {
     const formId = useId()
     const detectedCountry = useDetectedCountry()
 
+    // OTP gate: idle -> otp_sent (waiting for code) -> verified (call can be placed)
+    const [otpStatus, setOtpStatus] = useState('idle')
+    const [otpCode, setOtpCode] = useState('')
+    const [otpSending, setOtpSending] = useState(false)
+    const [otpVerifying, setOtpVerifying] = useState(false)
+    const [verifiedNumber, setVerifiedNumber] = useState('')
+
     const errors = validate(values)
     const busy = callPhase !== 'idle'
+
+    const handleSendOtp = async () => {
+        setOtpSending(true)
+        try {
+            const response = await fetch(`${BASE_URL}/agent_demo/otp/send/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_number: formatPhone(values.user_number) }),
+            })
+            const data = await response.json().catch(() => ({}))
+            if (!response.ok) throw new Error(data.detail || 'Failed to send OTP')
+            setOtpStatus('otp_sent')
+            showToast('OTP sent to your phone', 'success')
+        } catch (error) {
+            showToast(error.message || 'Failed to send OTP', 'error')
+        } finally {
+            setOtpSending(false)
+        }
+    }
+
+    const handleVerifyOtp = async () => {
+        setOtpVerifying(true)
+        try {
+            const phone = formatPhone(values.user_number)
+            const response = await fetch(`${BASE_URL}/agent_demo/otp/verify/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_number: phone, otp_code: otpCode }),
+            })
+            const data = await response.json().catch(() => ({}))
+            if (!response.ok) throw new Error(data.detail || 'Incorrect OTP')
+            setOtpStatus('verified')
+            setVerifiedNumber(phone)
+            showToast('Phone number verified', 'success')
+        } catch (error) {
+            showToast(error.message || 'Incorrect OTP', 'error')
+        } finally {
+            setOtpVerifying(false)
+        }
+    }
 
     const handleSubmit = async (e) => {
         e.preventDefault()
         setTouched({ user_name: true, user_number: true, industry: true })
         if (Object.keys(errors).length > 0) return
+
+        if (otpStatus !== 'verified' || verifiedNumber !== formatPhone(values.user_number)) {
+            showToast('Please verify your phone number with OTP first', 'error')
+            return
+        }
 
         setCallPhase('counting')
         for (let i = 3; i >= 1; i--) {
@@ -59,8 +116,7 @@ const LiveDemoCallSection = () => {
         }
         setCallPhase('dialing')
 
-        const cleanedPhone = values.user_number.replace(/[\s-]/g, '')
-        const phone = cleanedPhone.startsWith('+') ? cleanedPhone : `+${cleanedPhone}`
+        const phone = formatPhone(values.user_number)
         const industryLabel = INDUSTRY_OPTIONS.find((option) => option.value === values.industry)?.title || values.industry
 
         try {
@@ -74,15 +130,19 @@ const LiveDemoCallSection = () => {
                     industry: industryLabel,
                 }),
             })
-            if (!response.ok) throw new Error('Unexpected response')
+            const data = await response.json().catch(() => ({}))
+            if (!response.ok) throw new Error(data.detail || 'Unexpected response')
 
             setStatus('success')
             showToast('Your phone should be ringing now!', 'success')
             setValues({ user_name: '', user_number: '', industry: '' })
             setTouched({})
+            setOtpStatus('idle')
+            setOtpCode('')
+            setVerifiedNumber('')
         } catch (error) {
             console.error('Live demo call request failed:', error)
-            showToast("We couldn't place the call — please try again", 'error')
+            showToast(error.message || "We couldn't place the call — please try again", 'error')
         } finally {
             setCallPhase('idle')
             setCountdown(3)
@@ -134,13 +194,62 @@ const LiveDemoCallSection = () => {
                                         countryCodeEditable={false}
                                         disabled={busy}
                                         value={values.user_number}
-                                        onChange={(value, country, e, formattedValue) =>
+                                        onChange={(value, country, e, formattedValue) => {
                                             setValues((v) => ({ ...v, user_number: formattedValue }))
-                                        }
+                                            setOtpStatus('idle')
+                                            setOtpCode('')
+                                            setVerifiedNumber('')
+                                        }}
                                         onBlur={() => setTouched((t) => ({ ...t, user_number: true }))}
                                         inputProps={{ name: 'user_number', required: true }}
                                     />
                                 </FormField>
+
+                                {otpStatus !== 'verified' ? (
+                                    <div className="field otp-row">
+                                        {otpStatus === 'idle' && (
+                                            <button
+                                                type="button"
+                                                className="link-btn"
+                                                disabled={!!errors.user_number || !values.user_number || otpSending}
+                                                onClick={handleSendOtp}
+                                            >
+                                                {otpSending ? 'Sending…' : 'Send OTP'}
+                                            </button>
+                                        )}
+                                        {otpStatus === 'otp_sent' && (
+                                            <>
+                                                <input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    maxLength={6}
+                                                    placeholder="6-digit OTP"
+                                                    className="text-field"
+                                                    value={otpCode}
+                                                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="link-btn"
+                                                    disabled={otpCode.length !== 6 || otpVerifying}
+                                                    onClick={handleVerifyOtp}
+                                                >
+                                                    {otpVerifying ? 'Verifying…' : 'Verify'}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="link-btn"
+                                                    disabled={otpSending}
+                                                    onClick={handleSendOtp}
+                                                >
+                                                    Resend
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <p className="field-success">Phone number verified</p>
+                                )}
 
                                 <FormField id={`${formId}-industry`} label="Industry" error={touched.industry && errors.industry}>
                                     <select
@@ -158,7 +267,7 @@ const LiveDemoCallSection = () => {
                                     </select>
                                 </FormField>
 
-                                <button type="submit" disabled={busy} className="dark-btn">
+                                <button type="submit" disabled={busy || otpStatus !== 'verified'} className="dark-btn">
                                     {callPhase === 'counting' && `Calling in ${countdown}…`}
                                     {callPhase === 'dialing' && 'Calling…'}
                                     {callPhase === 'idle' && 'Call Me Now'}

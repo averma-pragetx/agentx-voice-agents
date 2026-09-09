@@ -99,6 +99,9 @@ body {
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
 .field label { font-size: 13px; font-weight: 500; color: #374151; }
 .field-error { font-size: 12px; color: var(--error); margin: 0; }
+.field-success { font-size: 12px; color: #15803d; margin: -8px 0 16px; }
+.otp-row { flex-direction: row; align-items: center; }
+.otp-row .text-field { width: auto; flex: 1; }
 
 .text-field {
   width: 100%;
