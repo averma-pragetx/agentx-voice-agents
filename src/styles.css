@@ -100,8 +100,226 @@ body {
 .field label { font-size: 13px; font-weight: 500; color: #374151; }
 .field-error { font-size: 12px; color: var(--error); margin: 0; }
 .field-success { font-size: 12px; color: #15803d; margin: -8px 0 16px; }
-.otp-row { flex-direction: row; align-items: center; }
-.otp-row .text-field { width: auto; flex: 1; }
+
+/* OTP & Verification Styles */
+.otp-section {
+  margin-top: -4px;
+  margin-bottom: 16px;
+}
+
+.btn-send-otp {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #f0f7ff;
+  color: var(--brand-primary);
+  border: 1px solid rgba(1, 104, 184, 0.25);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-send-otp:hover:not(:disabled) {
+  background: #e0effe;
+  border-color: var(--brand-primary);
+  box-shadow: 0 2px 8px rgba(1, 104, 184, 0.12);
+}
+
+.btn-send-otp:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: #f9fafb;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.otp-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: otp-fade-in 0.25s ease-out;
+}
+
+@keyframes otp-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.otp-box-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.otp-box-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.otp-box-hint {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.otp-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.otp-input {
+  flex: 1;
+  text-align: center;
+  letter-spacing: 5px;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 9px 12px;
+  background: #fff;
+}
+
+.otp-input::placeholder {
+  letter-spacing: 3px;
+  font-weight: 400;
+  color: #9ca3af;
+}
+
+.otp-verify-btn {
+  background: var(--brand-primary);
+  color: #fff;
+  border: none;
+  border-radius: 9px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(1, 104, 184, 0.25);
+  white-space: nowrap;
+  min-width: 80px;
+}
+
+.otp-verify-btn:hover:not(:disabled) {
+  background: #005699;
+  box-shadow: 0 4px 10px rgba(1, 104, 184, 0.3);
+  transform: translateY(-1px);
+}
+
+.otp-verify-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.otp-verify-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.otp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  padding-top: 2px;
+}
+
+.otp-footer-text {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.otp-resend-btn {
+  background: none;
+  border: none;
+  color: var(--brand-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.otp-resend-btn:hover:not(:disabled) {
+  text-decoration: underline;
+  color: #004d88;
+}
+
+.otp-resend-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.otp-verified-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-top: -4px;
+  margin-bottom: 16px;
+  animation: otp-fade-in 0.25s ease-out;
+}
+
+.otp-verified-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.otp-verified-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.otp-verified-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #15803d;
+  line-height: 1.2;
+}
+
+.otp-verified-sub {
+  font-size: 11px;
+  color: #166534;
+  line-height: 1.2;
+  margin-top: 2px;
+}
+
+.spinner-small {
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+}
 
 .text-field {
   width: 100%;

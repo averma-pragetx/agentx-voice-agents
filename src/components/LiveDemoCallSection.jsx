@@ -206,49 +206,79 @@ const LiveDemoCallSection = () => {
                                 </FormField>
 
                                 {otpStatus !== 'verified' ? (
-                                    <div className="field otp-row">
+                                    <div className="field otp-section">
                                         {otpStatus === 'idle' && (
                                             <button
                                                 type="button"
-                                                className="link-btn"
+                                                className="btn-send-otp"
                                                 disabled={!!errors.user_number || !values.user_number || otpSending}
                                                 onClick={handleSendOtp}
                                             >
-                                                {otpSending ? 'Sending…' : 'Send OTP'}
+                                                {otpSending ? (
+                                                    <>
+                                                        <span className="spinner-small" />
+                                                        Sending OTP…
+                                                    </>
+                                                ) : (
+                                                    'Send OTP Verification Code'
+                                                )}
                                             </button>
                                         )}
                                         {otpStatus === 'otp_sent' && (
-                                            <>
-                                                <input
-                                                    type="text"
-                                                    inputMode="numeric"
-                                                    maxLength={6}
-                                                    placeholder="6-digit OTP"
-                                                    className="text-field"
-                                                    value={otpCode}
-                                                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    className="link-btn"
-                                                    disabled={otpCode.length !== 6 || otpVerifying}
-                                                    onClick={handleVerifyOtp}
-                                                >
-                                                    {otpVerifying ? 'Verifying…' : 'Verify'}
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className="link-btn"
-                                                    disabled={otpSending}
-                                                    onClick={handleSendOtp}
-                                                >
-                                                    Resend
-                                                </button>
-                                            </>
+                                            <div className="otp-box">
+                                                <div className="otp-box-header">
+                                                    <span className="otp-box-title">Enter 6-Digit OTP</span>
+                                                    <span className="otp-box-hint">Code sent to your phone</span>
+                                                </div>
+                                                <div className="otp-input-row">
+                                                    <input
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        maxLength={6}
+                                                        placeholder="······"
+                                                        className="text-field otp-input"
+                                                        value={otpCode}
+                                                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                                                        autoFocus
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className="otp-verify-btn"
+                                                        disabled={otpCode.length !== 6 || otpVerifying}
+                                                        onClick={handleVerifyOtp}
+                                                    >
+                                                        {otpVerifying ? (
+                                                            <>
+                                                                <span className="spinner-small" />
+                                                                Verifying…
+                                                            </>
+                                                        ) : (
+                                                            'Verify'
+                                                        )}
+                                                    </button>
+                                                </div>
+                                                <div className="otp-footer">
+                                                    <span className="otp-footer-text">Didn&apos;t receive code?</span>
+                                                    <button
+                                                        type="button"
+                                                        className="otp-resend-btn"
+                                                        disabled={otpSending}
+                                                        onClick={handleSendOtp}
+                                                    >
+                                                        {otpSending ? 'Resending…' : 'Resend Code'}
+                                                    </button>
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
                                 ) : (
-                                    <p className="field-success">Phone number verified</p>
+                                    <div className="otp-verified-badge">
+                                        <div className="otp-verified-icon">✓</div>
+                                        <div className="otp-verified-content">
+                                            <span className="otp-verified-title">Phone number verified</span>
+                                            <span className="otp-verified-sub">Ready to receive call</span>
+                                        </div>
+                                    </div>
                                 )}
 
                                 <FormField id={`${formId}-industry`} label="Industry" error={touched.industry && errors.industry}>
