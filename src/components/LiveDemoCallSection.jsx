@@ -2,7 +2,8 @@ import { useId, useState } from 'react'
 import PhoneInput from 'react-phone-input-2'
 import 'react-phone-input-2/lib/style.css'
 import { isValidPhone } from '../lib/phoneValidation'
-import { useDetectedCountry } from '../lib/useDetectedCountry'
+// ponytail: IP-based country detection disabled for now — restore these 3 spots together.
+// import { useDetectedCountry } from '../lib/useDetectedCountry'
 import { INDUSTRY_OPTIONS } from '../constants/voiceAgentCategories'
 import { showToast } from '../lib/toast'
 
@@ -47,7 +48,8 @@ const LiveDemoCallSection = () => {
     const [touched, setTouched] = useState({})
     const [values, setValues] = useState({ user_name: '', user_number: '', industry: '' })
     const formId = useId()
-    const detectedCountry = useDetectedCountry()
+    // const detectedCountry = useDetectedCountry()
+    const detectedCountry = 'in'
 
     const errors = validate(values)
     const busy = callPhase !== 'idle'
