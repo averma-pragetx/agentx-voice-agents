@@ -5,6 +5,8 @@ import { isValidPhone } from '../lib/phoneValidation'
 import { useDetectedCountry } from '../lib/useDetectedCountry'
 import { INDUSTRY_OPTIONS } from '../constants/voiceAgentCategories'
 import { showToast } from '../lib/toast'
+import WindowCard from './WindowCard'
+import { CheckIcon, PhoneIcon } from './Icons'
 
 const BASE_URL = import.meta.env.VITE_BASE_URL
 
@@ -104,14 +106,14 @@ const LiveDemoCallSection = () => {
                     <ul className="check-list">
                         {REASSURANCES.map((item) => (
                             <li key={item}>
-                                <span className="check-icon">✓</span>
+                                <span className="check-icon"><CheckIcon size={14} /></span>
                                 {item}
                             </li>
                         ))}
                     </ul>
                 </div>
 
-                <div className="card">
+                <WindowCard title="Request a Call">
                     {status === 'idle' ? (
                         <>
                             <div className="card-heading">
@@ -164,6 +166,7 @@ const LiveDemoCallSection = () => {
                                 </FormField>
 
                                 <button type="submit" disabled={busy} className="dark-btn">
+                                    <PhoneIcon size={17} />
                                     {callPhase === 'counting' && `Calling in ${countdown}…`}
                                     {callPhase === 'dialing' && 'Calling…'}
                                     {callPhase === 'idle' && 'Call Me Now'}
@@ -176,13 +179,13 @@ const LiveDemoCallSection = () => {
                         </>
                     ) : (
                         <div className="success-panel" role="status" aria-live="polite">
-                            <span className="check-icon big">✓</span>
+                            <span className="check-icon big"><CheckIcon size={26} /></span>
                             <p className="success-title">Your phone should be ringing now</p>
                             <p className="success-sub">Didn&apos;t get a call? Give it a moment — it can take up to 10 seconds.</p>
                             <button onClick={() => setStatus('idle')} className="link-btn">Request another call</button>
                         </div>
                     )}
-                </div>
+                </WindowCard>
             </div>
         </section>
     )

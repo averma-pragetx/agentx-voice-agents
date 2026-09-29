@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { ConversationProvider, useConversation } from '@elevenlabs/react'
 import { VOICE_AGENT_CATEGORIES } from '../constants/voiceAgentCategories'
 import { showToast } from '../lib/toast'
+import WindowCard from './WindowCard'
+import { CheckIcon, MicIcon, MicOffIcon, PhoneIcon, PhoneOffIcon } from './Icons'
 
 const BASE_URL = import.meta.env.VITE_BASE_URL
 
@@ -32,48 +34,74 @@ const STATUS_LABEL = {
     speaking: 'Agent is speaking…',
 }
 
-const WAVEFORM_BAR_COUNT = 28
+const REASSURANCES = [
+    'A live conversation, right in your browser',
+    'Handles interruptions without losing the thread',
+    'No phone number, no signup',
+]
 
-const LiveWaveform = () => (
-    <div className="waveform" aria-label="Live audio">
-        {Array.from({ length: WAVEFORM_BAR_COUNT }).map((_, i) => (
-            <span key={i} className="waveform-bar" style={{ animationDelay: `${i * 0.06}s` }} />
-        ))}
-    </div>
-)
+// Bars peak in the middle so the row reads as one waveform — same shape as the
+// frontend's TestAgentModal.
+const BAR_SHAPE = [0.45, 0.65, 0.85, 1, 0.85, 0.65, 0.45]
+const BAR_MIN = 10
+const BAR_MAX = 64
 
-const WidgetCard = ({ children }) => (
-    <div className="widget-card">
-        <div className="widget-card-inner">
-            <div className="widget-card-header">
-                <span className="widget-card-logo" aria-hidden="true">🎙️</span>
-                <span>Voice Agents</span>
-            </div>
-            <div className="widget-card-body">{children}</div>
+// Driven by the SDK's real volume levels via rAF + direct style writes, so the bars
+// move only while someone is actually talking and React doesn't re-render per frame.
+const VoiceBars = ({ conversation }) => {
+    const barRefs = useRef([])
+    const conversationRef = useRef(conversation)
+    conversationRef.current = conversation
+
+    useEffect(() => {
+        let frame
+        const tick = (t) => {
+            const c = conversationRef.current
+            const agent = c.getOutputVolume()
+            const user = c.isMuted ? 0 : c.getInputVolume()
+            const level = Math.min(1, Math.max(agent, user) * 1.6)
+            const color = level < 0.04 ? '#d1d5db' : agent >= user ? '#0168b8' : '#4b9fe1'
+            barRefs.current.forEach((bar, i) => {
+                if (!bar) return
+                const wobble = 0.85 + 0.15 * Math.sin(t / 140 + i * 1.3)
+                bar.style.height = `${BAR_MIN + (BAR_MAX - BAR_MIN) * level * BAR_SHAPE[i] * wobble}px`
+                bar.style.background = color
+            })
+            frame = requestAnimationFrame(tick)
+        }
+        frame = requestAnimationFrame(tick)
+        return () => cancelAnimationFrame(frame)
+    }, [])
+
+    return (
+        <div className="voice-bars" aria-hidden="true">
+            {BAR_SHAPE.map((_, i) => (
+                <span key={i} ref={(el) => { barRefs.current[i] = el }} className="voice-bar" />
+            ))}
         </div>
-    </div>
-)
+    )
+}
 
 const PulsingOrb = () => (
     <div className="orb">
         <span className="orb-glow" />
-        <div className="orb-core">🎤</div>
+        <div className="orb-core"><MicIcon size={24} /></div>
     </div>
 )
 
 const IdlePanel = ({ category, setCategory, errorMessage, onInitiate, isBusy }) => (
     <div className="idle-panel">
         <PulsingOrb />
-        <p>Pick a use case and talk to our AI voice agent, live, right now.</p>
+        <p className="panel-lead">Pick a use case and talk to our AI voice agent, live, right now.</p>
 
-        <select value={category} onChange={(e) => setCategory(e.target.value)} disabled={isBusy} className="text-field">
+        <select value={category} onChange={(e) => setCategory(e.target.value)} disabled={isBusy} className="text-field" aria-label="Use case">
             {VOICE_AGENT_CATEGORIES.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
             ))}
         </select>
 
         <button type="button" onClick={onInitiate} disabled={isBusy} className="dark-btn">
-            {isBusy && <span className="spinner" />}
+            {isBusy ? <span className="spinner" /> : <PhoneIcon size={17} />}
             {isBusy ? 'Connecting…' : 'Initiate Call'}
         </button>
 
@@ -84,28 +112,44 @@ const IdlePanel = ({ category, setCategory, errorMessage, onInitiate, isBusy }) 
 )
 
 const BlockedPanel = () => (
-    <div className="idle-panel">
-        <p className="success-title">You've already tried this demo</p>
+    <div className="success-panel">
+        <span className="check-icon big"><MicOffIcon size={24} /></span>
+        <p className="success-title">You&apos;ve already tried this demo</p>
         <p className="success-sub">Each visitor gets one live session so everyone gets a turn.</p>
     </div>
 )
 
-const LivePanel = ({ statusLabel, elapsedSeconds, onEndCall }) => (
+const LivePanel = ({ conversation, statusLabel, elapsedSeconds, onEndCall }) => (
     <div className="idle-panel">
-        <PulsingOrb />
-        <div className="live-status">
-            <span className="live-dot" />
-            {statusLabel}
-            <span className="live-timer">{formatDuration(elapsedSeconds)}</span>
+        <VoiceBars conversation={conversation} />
+        <p className="live-status" aria-live="polite">{statusLabel}</p>
+        <p className="live-timer">{formatDuration(elapsedSeconds)}</p>
+        <div className="call-controls">
+            <div className="round-control">
+                <button
+                    type="button"
+                    className={`round-btn ${conversation.isMuted ? 'active' : ''}`}
+                    onClick={() => conversation.setMuted(!conversation.isMuted)}
+                    aria-pressed={conversation.isMuted}
+                    aria-label={conversation.isMuted ? 'Unmute' : 'Mute'}
+                >
+                    {conversation.isMuted ? <MicOffIcon size={20} /> : <MicIcon size={20} />}
+                </button>
+                {conversation.isMuted ? 'Unmute' : 'Mute'}
+            </div>
+            <div className="round-control">
+                <button type="button" className="round-btn end" onClick={onEndCall} aria-label="End call">
+                    <PhoneOffIcon size={20} />
+                </button>
+                End call
+            </div>
         </div>
-        <LiveWaveform />
-        <button type="button" onClick={onEndCall} className="danger-btn">End call</button>
     </div>
 )
 
 const ClosedPanel = ({ isDropped, onRestart }) => (
-    <div className="idle-panel">
-        <span className="check-icon big">✓</span>
+    <div className="success-panel">
+        <span className="check-icon big">{isDropped ? <PhoneOffIcon size={24} /> : <CheckIcon size={26} />}</span>
         <p className="success-title">{isDropped ? 'Connection lost' : 'Thanks for trying Voice Agents'}</p>
         {isDropped && <p className="success-sub">The call disconnected unexpectedly.</p>}
         <button type="button" onClick={onRestart} className="link-btn">Back to start</button>
@@ -200,19 +244,37 @@ const VoiceAgentWidgetInner = () => {
               : STATUS_LABEL.listening
 
     return (
-        <WidgetCard>
-            {callState === 'idle' && (
-                <IdlePanel category={category} setCategory={setCategory} errorMessage={errorMessage} onInitiate={handleInitiate} isBusy={false} />
-            )}
-            {callState === 'connecting' && (
-                <IdlePanel category={category} setCategory={setCategory} errorMessage="" onInitiate={() => {}} isBusy />
-            )}
-            {callState === 'blocked' && <BlockedPanel />}
-            {callState === 'live' && (
-                <LivePanel statusLabel={statusLabel} elapsedSeconds={elapsedSeconds} onEndCall={handleEndCall} />
-            )}
-            {callState === 'closed' && <ClosedPanel isDropped={isDropped} onRestart={resetToIdle} />}
-        </WidgetCard>
+        <section className="widget-section">
+            <div className="widget-grid">
+                <div className="widget-copy">
+                    <span className="badge">Talk Live</span>
+                    <h2>Talk to it right in your browser</h2>
+                    <p>Pick a use case and have a real conversation with our AI voice agent - it listens, answers, and keeps up.</p>
+                    <ul className="check-list">
+                        {REASSURANCES.map((item) => (
+                            <li key={item}>
+                                <span className="check-icon"><CheckIcon size={14} /></span>
+                                {item}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+
+                <WindowCard title="Live Voice Session" live={callState === 'live'}>
+                    {callState === 'idle' && (
+                        <IdlePanel category={category} setCategory={setCategory} errorMessage={errorMessage} onInitiate={handleInitiate} isBusy={false} />
+                    )}
+                    {callState === 'connecting' && (
+                        <IdlePanel category={category} setCategory={setCategory} errorMessage="" onInitiate={() => {}} isBusy />
+                    )}
+                    {callState === 'blocked' && <BlockedPanel />}
+                    {callState === 'live' && (
+                        <LivePanel conversation={conversation} statusLabel={statusLabel} elapsedSeconds={elapsedSeconds} onEndCall={handleEndCall} />
+                    )}
+                    {callState === 'closed' && <ClosedPanel isDropped={isDropped} onRestart={resetToIdle} />}
+                </WindowCard>
+            </div>
+        </section>
     )
 }
 
