@@ -2,7 +2,7 @@ import { useId, useState } from 'react'
 import PhoneInput from 'react-phone-input-2'
 import 'react-phone-input-2/lib/style.css'
 import { isValidPhone } from '../lib/phoneValidation'
-import { useDetectedCountry } from '../lib/useDetectedCountry'
+import { getVisitorIp, useDetectedCountry } from '../lib/useDetectedCountry'
 import { INDUSTRY_OPTIONS } from '../constants/voiceAgentCategories'
 import { showToast } from '../lib/toast'
 import WindowCard from './WindowCard'
@@ -68,6 +68,7 @@ const LiveDemoCallSection = () => {
 
         const phone = formatPhone(values.user_number)
         const industryLabel = INDUSTRY_OPTIONS.find((option) => option.value === values.industry)?.title || values.industry
+        const callerIp = await getVisitorIp() // usually cached from the country lookup; null if unavailable
 
         try {
             const response = await fetch(`${BASE_URL}/agent_demo/call/`, {
@@ -78,6 +79,7 @@ const LiveDemoCallSection = () => {
                     user_name: values.user_name.trim(),
                     user_number: phone,
                     industry: industryLabel,
+                    caller_ip: callerIp,
                 }),
             })
             const data = await response.json().catch(() => ({}))

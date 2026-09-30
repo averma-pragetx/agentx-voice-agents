@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ConversationProvider, useConversation } from '@elevenlabs/react'
 import { VOICE_AGENT_CATEGORIES } from '../constants/voiceAgentCategories'
 import { showToast } from '../lib/toast'
+import { getVisitorIp } from '../lib/useDetectedCountry'
 import WindowCard from './WindowCard'
 import { CheckIcon, MicIcon, MicOffIcon, PhoneIcon, PhoneOffIcon } from './Icons'
 
@@ -10,6 +11,18 @@ const BASE_URL = import.meta.env.VITE_BASE_URL
 // Once a user explicitly blocks mic access, browsers never re-show the permission
 // popup — retrying getUserMedia() just rejects silently every time. Permissions API
 // lets us tell that case apart from "hasn't decided yet" and point at the actual fix.
+// The conversation id only exists once the session connects, so the caller IP is attached then.
+// Fire-and-forget: the team email just shows no IP if this fails.
+const sendCallerIp = async (conversationId) => {
+    const ip = await getVisitorIp()
+    if (!conversationId || !ip) return
+    fetch(`${BASE_URL}/webhooks/elevenlabs/web-voice-agent/save-lead`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversation_id: conversationId, caller_ip: ip }),
+    }).catch(() => {})
+}
+
 const getMicDeniedMessage = async () => {
     try {
         const status = await navigator.permissions.query({ name: 'microphone' })
@@ -165,7 +178,10 @@ const VoiceAgentWidgetInner = () => {
     const timerRef = useRef(null)
 
     const conversation = useConversation({
-        onConnect: () => setCallState('live'),
+        onConnect: ({ conversationId } = {}) => {
+            setCallState('live')
+            sendCallerIp(conversationId)
+        },
         onDisconnect: (details) => {
             clearTimer()
             setIsDropped(details?.reason === 'error')
