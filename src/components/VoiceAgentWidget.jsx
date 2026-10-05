@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ConversationProvider, useConversation } from '@elevenlabs/react'
+import { Turnstile } from '@marsidev/react-turnstile'
 import { VOICE_AGENT_CATEGORIES } from '../constants/voiceAgentCategories'
 import { showToast } from '../lib/toast'
 import { getVisitorIp } from '../lib/useDetectedCountry'
@@ -7,6 +8,7 @@ import WindowCard from './WindowCard'
 import { CheckIcon, MicIcon, MicOffIcon, PhoneIcon, PhoneOffIcon } from './Icons'
 
 const BASE_URL = import.meta.env.VITE_BASE_URL
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY_WEB
 
 // Once a user explicitly blocks mic access, browsers never re-show the permission
 // popup — retrying getUserMedia() just rejects silently every time. Permissions API
@@ -102,7 +104,7 @@ const PulsingOrb = () => (
     </div>
 )
 
-const IdlePanel = ({ category, setCategory, errorMessage, onInitiate, isBusy }) => (
+const IdlePanel = ({ category, setCategory, errorMessage, onInitiate, isBusy, turnstileRef, turnstileToken, setTurnstileToken }) => (
     <div className="idle-panel">
         <PulsingOrb />
         <p className="panel-lead">Pick a use case and talk to our AI voice agent, live, right now.</p>
@@ -113,7 +115,15 @@ const IdlePanel = ({ category, setCategory, errorMessage, onInitiate, isBusy }) 
             ))}
         </select>
 
-        <button type="button" onClick={onInitiate} disabled={isBusy} className="dark-btn">
+        <Turnstile
+            ref={turnstileRef}
+            siteKey={TURNSTILE_SITE_KEY}
+            onSuccess={setTurnstileToken}
+            onExpire={() => setTurnstileToken(null)}
+            onError={() => setTurnstileToken(null)}
+        />
+
+        <button type="button" onClick={onInitiate} disabled={isBusy || !turnstileToken} className="dark-btn">
             {isBusy ? <span className="spinner" /> : <PhoneIcon size={17} />}
             {isBusy ? 'Connecting…' : 'Initiate Call'}
         </button>
@@ -176,6 +186,9 @@ const VoiceAgentWidgetInner = () => {
     const [isDropped, setIsDropped] = useState(false)
     const [elapsedSeconds, setElapsedSeconds] = useState(0)
     const timerRef = useRef(null)
+    const [turnstileToken, setTurnstileToken] = useState(null)
+    const turnstileRef = useRef(null)
+    const turnstileProps = { turnstileRef, turnstileToken, setTurnstileToken }
 
     const conversation = useConversation({
         onConnect: ({ conversationId } = {}) => {
@@ -218,6 +231,7 @@ const VoiceAgentWidgetInner = () => {
     }
 
     const handleInitiate = async () => {
+        if (!turnstileToken) return
         setErrorMessage('')
         try {
             await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -231,7 +245,7 @@ const VoiceAgentWidgetInner = () => {
             const response = await fetch(`${BASE_URL}/agent/dispatch_agent/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ agent_type: 'web_voice', category }),
+                body: JSON.stringify({ agent_type: 'web_voice', category, turnstileToken }),
             })
             if (response.status === 409) {
                 setCallState('blocked')
@@ -247,6 +261,10 @@ const VoiceAgentWidgetInner = () => {
             showToast("Couldn't connect to the voice agent. Please try again.", 'error')
             setErrorMessage("Couldn't connect to the voice agent. Please try again.")
             setCallState('idle')
+        } finally {
+            // Tokens are single-use — get a fresh one for the next attempt.
+            turnstileRef.current?.reset()
+            setTurnstileToken(null)
         }
     }
 
@@ -278,10 +296,10 @@ const VoiceAgentWidgetInner = () => {
 
                 <WindowCard title="Live Voice Session" live={callState === 'live'}>
                     {callState === 'idle' && (
-                        <IdlePanel category={category} setCategory={setCategory} errorMessage={errorMessage} onInitiate={handleInitiate} isBusy={false} />
+                        <IdlePanel category={category} setCategory={setCategory} errorMessage={errorMessage} onInitiate={handleInitiate} isBusy={false} {...turnstileProps} />
                     )}
                     {callState === 'connecting' && (
-                        <IdlePanel category={category} setCategory={setCategory} errorMessage="" onInitiate={() => {}} isBusy />
+                        <IdlePanel category={category} setCategory={setCategory} errorMessage="" onInitiate={() => {}} isBusy {...turnstileProps} />
                     )}
                     {callState === 'blocked' && <BlockedPanel />}
                     {callState === 'live' && (

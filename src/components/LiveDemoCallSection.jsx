@@ -1,4 +1,5 @@
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
+import { Turnstile } from '@marsidev/react-turnstile'
 import PhoneInput from 'react-phone-input-2'
 import 'react-phone-input-2/lib/style.css'
 import { isValidPhone } from '../lib/phoneValidation'
@@ -9,6 +10,7 @@ import WindowCard from './WindowCard'
 import { CheckIcon, PhoneIcon } from './Icons'
 
 const BASE_URL = import.meta.env.VITE_BASE_URL
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY_INDUSTRY
 
 const REASSURANCES = [
     'A real call within ~10 seconds',
@@ -48,6 +50,8 @@ const LiveDemoCallSection = () => {
     const [countdown, setCountdown] = useState(3)
     const [touched, setTouched] = useState({})
     const [values, setValues] = useState({ user_name: '', user_number: '', industry: '' })
+    const [turnstileToken, setTurnstileToken] = useState(null)
+    const turnstileRef = useRef(null)
     const formId = useId()
     const detectedCountry = useDetectedCountry()
 
@@ -57,7 +61,7 @@ const LiveDemoCallSection = () => {
     const handleSubmit = async (e) => {
         e.preventDefault()
         setTouched({ user_name: true, user_number: true, industry: true })
-        if (Object.keys(errors).length > 0) return
+        if (Object.keys(errors).length > 0 || !turnstileToken) return
 
         setCallPhase('counting')
         for (let i = 3; i >= 1; i--) {
@@ -80,6 +84,7 @@ const LiveDemoCallSection = () => {
                     user_number: phone,
                     industry: industryLabel,
                     caller_ip: callerIp,
+                    turnstileToken,
                 }),
             })
             const data = await response.json().catch(() => ({}))
@@ -93,6 +98,9 @@ const LiveDemoCallSection = () => {
             console.error('Live demo call request failed:', error)
             showToast(error.message || "We couldn't place the call — please try again", 'error')
         } finally {
+            // Tokens are single-use — get a fresh one for the next submit.
+            turnstileRef.current?.reset()
+            setTurnstileToken(null)
             setCallPhase('idle')
             setCountdown(3)
         }
@@ -167,7 +175,15 @@ const LiveDemoCallSection = () => {
                                     </select>
                                 </FormField>
 
-                                <button type="submit" disabled={busy} className="dark-btn">
+                                <Turnstile
+                                    ref={turnstileRef}
+                                    siteKey={TURNSTILE_SITE_KEY}
+                                    onSuccess={setTurnstileToken}
+                                    onExpire={() => setTurnstileToken(null)}
+                                    onError={() => setTurnstileToken(null)}
+                                />
+
+                                <button type="submit" disabled={busy || !turnstileToken} className="dark-btn">
                                     <PhoneIcon size={17} />
                                     {callPhase === 'counting' && `Calling in ${countdown}…`}
                                     {callPhase === 'dialing' && 'Calling…'}
