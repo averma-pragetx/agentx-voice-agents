@@ -178,6 +178,7 @@ const LiveDemoCallSection = () => {
                                 <Turnstile
                                     ref={turnstileRef}
                                     siteKey={TURNSTILE_SITE_KEY}
+                                    options={{ action: 'industry_call' }}
                                     onSuccess={setTurnstileToken}
                                     onExpire={() => setTurnstileToken(null)}
                                     onError={() => setTurnstileToken(null)}

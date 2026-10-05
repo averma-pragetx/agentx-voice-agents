@@ -118,6 +118,7 @@ const IdlePanel = ({ category, setCategory, errorMessage, onInitiate, isBusy, tu
         <Turnstile
             ref={turnstileRef}
             siteKey={TURNSTILE_SITE_KEY}
+            options={{ action: 'web_voice' }}
             onSuccess={setTurnstileToken}
             onExpire={() => setTurnstileToken(null)}
             onError={() => setTurnstileToken(null)}
