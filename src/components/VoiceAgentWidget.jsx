@@ -201,9 +201,10 @@ const VoiceAgentWidgetInner = () => {
             setIsDropped(details?.reason === 'error')
             setCallState('closed')
         },
-        onError: (message) => {
+        // SDK error text can name the voice provider, so never show it.
+        onError: () => {
             clearTimer()
-            setErrorMessage(typeof message === 'string' ? message : 'Connection error, please try again.')
+            setErrorMessage('Connection error, please try again.')
             setCallState((prev) => (prev === 'live' ? 'closed' : 'idle'))
             setIsDropped(true)
         },
