@@ -223,14 +223,25 @@ select.text-field {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .react-tel-input .form-control:focus { border-color: var(--brand-primary) !important; box-shadow: 0 0 0 4px var(--brand-ring) !important; }
+/* Transparent so the input's own border and focus ring wrap the whole field, picker included */
 .react-tel-input .flag-dropdown {
-  border: 1px solid var(--border) !important;
+  border: 1px solid transparent !important;
+  border-right-color: var(--border) !important;
   border-radius: 10px 0 0 10px !important;
-  background: #fafafa !important;
+  background: transparent !important;
 }
 .react-tel-input .flag-dropdown.open .selected-flag,
 .react-tel-input .selected-flag:hover { border-radius: 10px 0 0 10px !important; background: var(--surface-2) !important; }
 .react-tel-input .country-list { width: 260px; max-height: 200px; font-size: 13px; border-radius: 10px; }
+/* Dial code shown on the flag button, so the number box holds only the national number */
+.phone-field { position: relative; }
+.phone-field .react-tel-input .selected-flag { width: 82px; }
+.phone-field .react-tel-input .form-control { padding-left: 94px; }
+.phone-field .country .dial-code::before { content: '+'; } /* disableCountryCode drops the + from list entries */
+.phone-field .selected-dial-code {
+  position: absolute; left: 44px; top: 50%; transform: translateY(-50%);
+  font-size: 15px; color: var(--text); pointer-events: none;
+}
 
 /* ── Buttons ── */
 .dark-btn {
@@ -273,6 +284,7 @@ select.text-field {
 .link-btn:hover { background: #e8f2f8; }
 
 .fine-print { margin: 24px 0 0; font-size: 11px; line-height: 16px; color: var(--subtle); text-align: center; }
+.fine-print a { color: inherit; }
 
 /* ── Panels ── */
 .success-panel, .idle-panel {
