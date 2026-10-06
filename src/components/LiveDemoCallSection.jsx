@@ -150,10 +150,9 @@ const LiveDemoCallSection = () => {
                                             preserveOrder={['onlyCountries']}
                                             disableCountryCode
                                             disableCountryGuess
-                                            masks={{ ie: '... ... ...' }} // library's ".. ......." also formats the list's dial code, showing 353 as "35 3"
+                                            autoFormat={false} // its masks also format the list's dial codes, showing +353 as "35 3" and +33 as "3 3"
                                             enableSearch
                                             searchPlaceholder="Search country"
-                                            enableLongNumbers // don't let the mask truncate a pasted "+91 …" before we strip it
                                             placeholder=""
                                             disabled={busy}
                                             value={values.user_number}
