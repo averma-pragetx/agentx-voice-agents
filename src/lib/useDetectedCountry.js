@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 
 const STORAGE_KEY = 'agentx-detected-country'
 const IP_STORAGE_KEY = 'agentx-visitor-ip'
-const DEFAULT_COUNTRY = 'in'
 const GEO_ENDPOINT = 'https://ipwho.is/'
 const IP_WAIT_MS = 2000
 
@@ -51,10 +50,10 @@ export const getVisitorIp = () => {
     return Promise.race([lookupVisitor().then((result) => result.ip || null), timeout])
 }
 
-// Detects visitor's country from IP so the phone input defaults to the right
-// dial code. Falls back to DEFAULT_COUNTRY on failure; cached per session.
+// Detects visitor's country (lowercase iso2) from IP so the phone input defaults to the right
+// dial code. null while loading or when the lookup fails — callers pick their own fallback. Cached per session.
 export const useDetectedCountry = () => {
-    const [country, setCountry] = useState(DEFAULT_COUNTRY)
+    const [country, setCountry] = useState(null)
 
     useEffect(() => {
         const cached = readCache(STORAGE_KEY)

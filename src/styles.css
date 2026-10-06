@@ -284,6 +284,7 @@ select.text-field {
 .link-btn:hover { background: #e8f2f8; }
 
 .fine-print { margin: 24px 0 0; font-size: 11px; line-height: 16px; color: var(--subtle); text-align: center; }
+.fine-print a { color: inherit; }
 
 /* ── Panels ── */
 .success-panel, .idle-panel {

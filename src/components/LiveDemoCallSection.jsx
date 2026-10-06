@@ -52,6 +52,8 @@ const LiveDemoCallSection = () => {
 
     // Until the visitor picks one, follow IP detection — but only within the countries we call.
     const phoneCountry = values.phone_country || (PHONE_COUNTRIES.includes(detectedCountry) ? detectedCountry : 'in')
+    // Visitors outside the supported countries can't request a call; the backend enforces the same from the request IP.
+    const unavailable = detectedCountry && !PHONE_COUNTRIES.includes(detectedCountry)
     const errors = validate({ ...values, phone_country: phoneCountry })
     const busy = callPhase !== 'idle'
 
@@ -121,7 +123,12 @@ const LiveDemoCallSection = () => {
                 </div>
 
                 <WindowCard title="Request a Call">
-                    {status === 'idle' ? (
+                    {unavailable ? (
+                        <div className="success-panel" role="status">
+                            <p className="success-title">Not available in your country yet</p>
+                            <p className="success-sub">Live demo calls are currently offered in the US, Canada, India, the UK and Europe.</p>
+                        </div>
+                    ) : status === 'idle' ? (
                         <>
                             <div className="card-heading">
                                 <h3>Request your call</h3>
@@ -202,6 +209,7 @@ const LiveDemoCallSection = () => {
 
                             <p className="fine-print">
                                 By requesting a call you agree to receive an automated call from Voice Agents. Message/data rates may apply.
+                                {' '}<a href="https://db-ip.com" target="_blank" rel="noopener noreferrer">IP geolocation by DB-IP</a>.
                             </p>
                         </>
                     ) : (
