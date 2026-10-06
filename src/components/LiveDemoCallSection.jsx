@@ -2,7 +2,7 @@ import { useId, useRef, useState } from 'react'
 import { Turnstile } from '@marsidev/react-turnstile'
 import PhoneInput from 'react-phone-input-2'
 import 'react-phone-input-2/lib/style.css'
-import { isValidPhone } from '../lib/phoneValidation'
+import { PHONE_COUNTRIES, countryName, dialCodeFor, isValidMobile, stripDialCode, toE164 } from '../lib/phoneValidation'
 import { getVisitorIp, useDetectedCountry } from '../lib/useDetectedCountry'
 import { INDUSTRY_OPTIONS } from '../constants/voiceAgentCategories'
 import { showToast } from '../lib/toast'
@@ -18,14 +18,14 @@ const REASSURANCES = [
     'Hear exactly how Voice Agents sounds live',
 ]
 
-const validate = ({ user_name, user_number, industry }) => {
+const validate = ({ user_name, user_number, phone_country, industry }) => {
     const errors = {}
     if (!user_name.trim()) errors.user_name = 'Name is required'
     else if (!/^[A-Za-z\s]+$/.test(user_name.trim())) errors.user_name = 'Name can only contain letters'
     else if (user_name.trim().length < 2) errors.user_name = 'Name must be at least 2 characters'
 
     if (!user_number.trim()) errors.user_number = 'Phone number is required'
-    else if (!isValidPhone(user_number.trim())) errors.user_number = 'Invalid phone number'
+    else if (!isValidMobile(user_number, phone_country)) errors.user_number = `Enter a valid ${countryName(phone_country)} mobile number`
 
     if (!industry) errors.industry = 'Industry is required'
     return errors
@@ -39,23 +39,20 @@ const FormField = ({ id, label, error, children }) => (
     </div>
 )
 
-const formatPhone = (raw) => {
-    const cleaned = raw.replace(/[\s-]/g, '')
-    return cleaned.startsWith('+') ? cleaned : `+${cleaned}`
-}
-
 const LiveDemoCallSection = () => {
     const [status, setStatus] = useState('idle') // idle | success
     const [callPhase, setCallPhase] = useState('idle') // idle | counting | dialing
     const [countdown, setCountdown] = useState(3)
     const [touched, setTouched] = useState({})
-    const [values, setValues] = useState({ user_name: '', user_number: '', industry: '' })
+    const [values, setValues] = useState({ user_name: '', user_number: '', phone_country: null, industry: '' })
     const [turnstileToken, setTurnstileToken] = useState(null)
     const turnstileRef = useRef(null)
     const formId = useId()
     const detectedCountry = useDetectedCountry()
 
-    const errors = validate(values)
+    // Until the visitor picks one, follow IP detection — but only within the countries we call.
+    const phoneCountry = values.phone_country || (PHONE_COUNTRIES.includes(detectedCountry) ? detectedCountry : 'in')
+    const errors = validate({ ...values, phone_country: phoneCountry })
     const busy = callPhase !== 'idle'
 
     const handleSubmit = async (e) => {
@@ -70,7 +67,7 @@ const LiveDemoCallSection = () => {
         }
         setCallPhase('dialing')
 
-        const phone = formatPhone(values.user_number)
+        const phone = toE164(values.user_number, phoneCountry)
         const industryLabel = INDUSTRY_OPTIONS.find((option) => option.value === values.industry)?.title || values.industry
         const callerIp = await getVisitorIp() // usually cached from the country lookup; null if unavailable
 
@@ -92,7 +89,7 @@ const LiveDemoCallSection = () => {
 
             setStatus('success')
             showToast('Your phone should be ringing now!', 'success')
-            setValues({ user_name: '', user_number: '', industry: '' })
+            setValues((v) => ({ ...v, user_name: '', user_number: '', industry: '' }))
             setTouched({})
         } catch (error) {
             console.error('Live demo call request failed:', error)
@@ -146,17 +143,29 @@ const LiveDemoCallSection = () => {
                                 </FormField>
 
                                 <FormField id={`${formId}-phone`} label="Phone number" error={touched.user_number && errors.user_number}>
-                                    <PhoneInput
-                                        country={detectedCountry}
-                                        countryCodeEditable={false}
-                                        disabled={busy}
-                                        value={values.user_number}
-                                        onChange={(value, country, e, formattedValue) => {
-                                            setValues((v) => ({ ...v, user_number: formattedValue }))
-                                        }}
-                                        onBlur={() => setTouched((t) => ({ ...t, user_number: true }))}
-                                        inputProps={{ name: 'user_number', required: true }}
-                                    />
+                                    <div className="phone-field">
+                                        <PhoneInput
+                                            country={phoneCountry}
+                                            onlyCountries={PHONE_COUNTRIES}
+                                            preserveOrder={['onlyCountries']}
+                                            disableCountryCode
+                                            disableCountryGuess
+                                            masks={{ ie: '... ... ...' }} // library's ".. ......." also formats the list's dial code, showing 353 as "35 3"
+                                            enableSearch
+                                            searchPlaceholder="Search country"
+                                            enableLongNumbers // don't let the mask truncate a pasted "+91 …" before we strip it
+                                            placeholder=""
+                                            disabled={busy}
+                                            value={values.user_number}
+                                            onChange={(value, country) => {
+                                                const iso2 = country.countryCode || phoneCountry
+                                                setValues((v) => ({ ...v, phone_country: iso2, user_number: stripDialCode(value, iso2) }))
+                                            }}
+                                            onBlur={() => setTouched((t) => ({ ...t, user_number: true }))}
+                                            inputProps={{ id: `${formId}-phone`, name: 'user_number', required: true, inputMode: 'tel' }}
+                                        />
+                                        <span className="selected-dial-code" aria-hidden="true">+{dialCodeFor(phoneCountry)}</span>
+                                    </div>
                                 </FormField>
 
                                 <FormField id={`${formId}-industry`} label="Industry" error={touched.industry && errors.industry}>
